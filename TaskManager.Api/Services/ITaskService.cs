@@ -1,0 +1,13 @@
+using TaskManager.Api.Models;
+
+namespace TaskManager.Api.Services
+{
+    public interface ITaskService
+    {
+        Task<TaskItem?> GetTaskByIdAsync(int id);
+        Task<IEnumerable<TaskItem>> GetTasksByProjectIdAsync(int projectId);
+        Task<TaskItem> CreateTaskAsync(TaskItem task, int projectId);
+        Task<bool> UpdateTaskAsync(int id, TaskItem updatedTask);
+        Task<bool> DeleteTaskAsync(int id);
+    }
+}
