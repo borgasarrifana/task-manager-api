@@ -40,7 +40,7 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(
                 "http://localhost:5173",
-                "https://task-manager-api-phi-seven.vercel.app"
+                "https://task-manager-ui-ruby.vercel.app"
               )
               .AllowAnyHeader()
               .AllowAnyMethod();
