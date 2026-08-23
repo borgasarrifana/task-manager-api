@@ -28,6 +28,10 @@ namespace TaskManager.Api.Services
         public async Task<TaskItem> CreateTaskAsync(TaskItem task, int projectId)
         {
             task.ProjectId = projectId;
+            if (task.DueDate.HasValue)
+            {
+                task.DueDate = DateTime.SpecifyKind(task.DueDate.Value, DateTimeKind.Utc);
+            }
             _context.Tasks.Add(task);
             await _context.SaveChangesAsync();
             return task;
@@ -43,7 +47,9 @@ namespace TaskManager.Api.Services
             task.Title = updatedTask.Title;
             task.IsDone = updatedTask.IsDone;
             task.Priority = updatedTask.Priority;
-            task.DueDate = updatedTask.DueDate;
+            task.DueDate = updatedTask.DueDate.HasValue
+                ? DateTime.SpecifyKind(updatedTask.DueDate.Value, DateTimeKind.Utc)
+                : null;
             await _context.SaveChangesAsync();
             return true;
         }
