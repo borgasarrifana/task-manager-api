@@ -13,9 +13,11 @@ namespace TaskManager.Api.Services
             _context = context;
         }
 
-        public async Task<TaskItem?> GetTaskByIdAsync(int id)
+        public async Task<TaskItem?> GetTaskByIdAsync(int id, int userId)
         {
-            return await _context.Tasks.FindAsync(id);
+            return await _context.Tasks
+                .Include(t => t.Project)
+                .FirstOrDefaultAsync(t => t.Id == id && t.Project!.UserId == userId);
         }
 
         public async Task<IEnumerable<TaskItem>> GetTasksByProjectIdAsync(int projectId)
@@ -31,20 +33,26 @@ namespace TaskManager.Api.Services
             return task;
         }
 
-        public async Task<bool> UpdateTaskAsync(int id, TaskItem updatedTask)
+        public async Task<bool> UpdateTaskAsync(int id, TaskItem updatedTask, int userId)
         {
-            var task = await _context.Tasks.FindAsync(id);
+            var task = await _context.Tasks
+                .Include(t => t.Project)
+                .FirstOrDefaultAsync(t => t.Id == id && t.Project!.UserId == userId);
             if (task == null) return false;
 
             task.Title = updatedTask.Title;
             task.IsDone = updatedTask.IsDone;
+            task.Priority = updatedTask.Priority;
+            task.DueDate = updatedTask.DueDate;
             await _context.SaveChangesAsync();
             return true;
         }
 
-        public async Task<bool> DeleteTaskAsync(int id)
+        public async Task<bool> DeleteTaskAsync(int id, int userId)
         {
-            var task = await _context.Tasks.FindAsync(id);
+            var task = await _context.Tasks
+                .Include(t => t.Project)
+                .FirstOrDefaultAsync(t => t.Id == id && t.Project!.UserId == userId);
             if (task == null) return false;
 
             _context.Tasks.Remove(task);

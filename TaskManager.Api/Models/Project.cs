@@ -5,7 +5,9 @@ namespace TaskManager.Api.Models
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
 
-        // Navigation property: one Project has many Tasks
+        public int UserId { get; set; }
+        public User? User { get; set; }
+
         public List<TaskItem> Tasks { get; set; } = new();
     }
 }

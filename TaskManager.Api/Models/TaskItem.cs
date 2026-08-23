@@ -7,7 +7,9 @@ namespace TaskManager.Api.Models
         public bool IsDone { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        // Foreign key + navigation property back to Project
+        public Priority Priority { get; set; } = Priority.Medium;
+        public DateTime? DueDate { get; set; }
+
         public int ProjectId { get; set; }
         public Project? Project { get; set; }
     }
