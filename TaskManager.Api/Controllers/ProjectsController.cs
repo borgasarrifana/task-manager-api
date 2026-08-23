@@ -71,5 +71,13 @@ namespace TaskManager.Api.Controllers
             var created = await _taskService.CreateTaskAsync(task, projectId);
             return CreatedAtAction(nameof(GetProjectTasks), new { projectId }, ToTaskDto(created));
         }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteProject(int id)
+        {
+            var success = await _projectService.DeleteProjectAsync(id);
+            if (!success) return NotFound();
+            return NoContent();
+        }
     }
 }

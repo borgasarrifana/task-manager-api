@@ -29,5 +29,15 @@ namespace TaskManager.Api.Services
             await _context.SaveChangesAsync();
             return project;
         }
+
+        public async Task<bool> DeleteProjectAsync(int id)
+        {
+            var project = await _context.Projects.FindAsync(id);
+            if (project == null) return false;
+
+            _context.Projects.Remove(project);
+            await _context.SaveChangesAsync();
+            return true;
+        }
     }
 }
