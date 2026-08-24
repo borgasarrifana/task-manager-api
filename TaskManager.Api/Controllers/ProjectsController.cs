@@ -32,7 +32,8 @@ namespace TaskManager.Api.Controllers
         private static ProjectResponseDto ToDto(Project project) => new()
         {
             Id = project.Id,
-            Name = project.Name
+            Name = project.Name,
+            OwnerUsername = project.User?.Username
         };
 
         private static TaskResponseDto ToTaskDto(TaskItem task) => new()

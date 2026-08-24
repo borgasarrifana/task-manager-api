@@ -15,7 +15,7 @@ namespace TaskManager.Api.Services
 
         public async Task<IEnumerable<Project>> GetAllProjectsAsync(int userId, bool isAdmin = false)
         {
-            var query = _context.Projects.AsQueryable();
+            var query = _context.Projects.Include(p => p.User).AsQueryable();
             if (!isAdmin)
             {
                 query = query.Where(p => p.UserId == userId);
@@ -26,6 +26,7 @@ namespace TaskManager.Api.Services
         public async Task<Project?> GetProjectByIdAsync(int id, int userId, bool isAdmin = false)
         {
             return await _context.Projects
+                .Include(p => p.User)
                 .FirstOrDefaultAsync(p => p.Id == id && (isAdmin || p.UserId == userId));
         }
 
