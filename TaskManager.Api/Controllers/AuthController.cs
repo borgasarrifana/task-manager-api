@@ -34,7 +34,8 @@ namespace TaskManager.Api.Controllers
             var user = new User
             {
                 Username = dto.Username,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password)
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+                Role = UserRole.Member
             };
 
             _context.Users.Add(user);
@@ -54,7 +55,7 @@ namespace TaskManager.Api.Controllers
             }
 
             var token = GenerateJwtToken(user);
-            return Ok(new AuthResponseDto { Token = token });
+            return Ok(new AuthResponseDto { Token = token, Role = user.Role.ToString() });
         }
 
         private string GenerateJwtToken(User user)
@@ -62,7 +63,8 @@ namespace TaskManager.Api.Controllers
             var claims = new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.Username)
+                new Claim(ClaimTypes.Name, user.Username),
+                new Claim(ClaimTypes.Role, user.Role.ToString())
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));

@@ -27,6 +27,8 @@ namespace TaskManager.Api.Controllers
             return int.Parse(idClaim!);
         }
 
+        private bool IsAdmin() => User.IsInRole("Admin");
+
         private static ProjectResponseDto ToDto(Project project) => new()
         {
             Id = project.Id,
@@ -47,7 +49,7 @@ namespace TaskManager.Api.Controllers
         public async Task<ActionResult<IEnumerable<ProjectResponseDto>>> GetProjects()
         {
             var userId = GetUserId();
-            var projects = await _projectService.GetAllProjectsAsync(userId);
+            var projects = await _projectService.GetAllProjectsAsync(userId, IsAdmin());
             return Ok(projects.Select(ToDto));
         }
 
@@ -64,7 +66,7 @@ namespace TaskManager.Api.Controllers
         public async Task<ActionResult<IEnumerable<TaskResponseDto>>> GetProjectTasks(int projectId)
         {
             var userId = GetUserId();
-            var project = await _projectService.GetProjectByIdAsync(projectId, userId);
+            var project = await _projectService.GetProjectByIdAsync(projectId, userId, IsAdmin());
             if (project == null) return NotFound($"Project {projectId} not found.");
 
             var tasks = await _taskService.GetTasksByProjectIdAsync(projectId);
@@ -75,7 +77,7 @@ namespace TaskManager.Api.Controllers
         public async Task<ActionResult<TaskResponseDto>> CreateProjectTask(int projectId, CreateTaskDto dto)
         {
             var userId = GetUserId();
-            var project = await _projectService.GetProjectByIdAsync(projectId, userId);
+            var project = await _projectService.GetProjectByIdAsync(projectId, userId, IsAdmin());
             if (project == null) return NotFound($"Project {projectId} not found.");
 
             var task = new TaskItem { Title = dto.Title, Priority = dto.Priority, DueDate = dto.DueDate };
@@ -87,7 +89,7 @@ namespace TaskManager.Api.Controllers
         public async Task<IActionResult> DeleteProject(int id)
         {
             var userId = GetUserId();
-            var success = await _projectService.DeleteProjectAsync(id, userId);
+            var success = await _projectService.DeleteProjectAsync(id, userId, IsAdmin());
             if (!success) return NotFound();
             return NoContent();
         }

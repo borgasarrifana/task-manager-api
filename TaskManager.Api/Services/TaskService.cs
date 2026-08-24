@@ -13,11 +13,11 @@ namespace TaskManager.Api.Services
             _context = context;
         }
 
-        public async Task<TaskItem?> GetTaskByIdAsync(int id, int userId)
+        public async Task<TaskItem?> GetTaskByIdAsync(int id, int userId, bool isAdmin = false)
         {
             return await _context.Tasks
                 .Include(t => t.Project)
-                .FirstOrDefaultAsync(t => t.Id == id && t.Project!.UserId == userId);
+                .FirstOrDefaultAsync(t => t.Id == id && (isAdmin || t.Project!.UserId == userId));
         }
 
         public async Task<IEnumerable<TaskItem>> GetTasksByProjectIdAsync(int projectId)
@@ -37,11 +37,11 @@ namespace TaskManager.Api.Services
             return task;
         }
 
-        public async Task<bool> UpdateTaskAsync(int id, TaskItem updatedTask, int userId)
+        public async Task<bool> UpdateTaskAsync(int id, TaskItem updatedTask, int userId, bool isAdmin = false)
         {
             var task = await _context.Tasks
                 .Include(t => t.Project)
-                .FirstOrDefaultAsync(t => t.Id == id && t.Project!.UserId == userId);
+                .FirstOrDefaultAsync(t => t.Id == id && (isAdmin || t.Project!.UserId == userId));
             if (task == null) return false;
 
             task.Title = updatedTask.Title;
@@ -54,11 +54,11 @@ namespace TaskManager.Api.Services
             return true;
         }
 
-        public async Task<bool> DeleteTaskAsync(int id, int userId)
+        public async Task<bool> DeleteTaskAsync(int id, int userId, bool isAdmin = false)
         {
             var task = await _context.Tasks
                 .Include(t => t.Project)
-                .FirstOrDefaultAsync(t => t.Id == id && t.Project!.UserId == userId);
+                .FirstOrDefaultAsync(t => t.Id == id && (isAdmin || t.Project!.UserId == userId));
             if (task == null) return false;
 
             _context.Tasks.Remove(task);

@@ -13,14 +13,20 @@ namespace TaskManager.Api.Services
             _context = context;
         }
 
-        public async Task<IEnumerable<Project>> GetAllProjectsAsync(int userId)
+        public async Task<IEnumerable<Project>> GetAllProjectsAsync(int userId, bool isAdmin = false)
         {
-            return await _context.Projects.Where(p => p.UserId == userId).ToListAsync();
+            var query = _context.Projects.AsQueryable();
+            if (!isAdmin)
+            {
+                query = query.Where(p => p.UserId == userId);
+            }
+            return await query.ToListAsync();
         }
 
-        public async Task<Project?> GetProjectByIdAsync(int id, int userId)
+        public async Task<Project?> GetProjectByIdAsync(int id, int userId, bool isAdmin = false)
         {
-            return await _context.Projects.FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
+            return await _context.Projects
+                .FirstOrDefaultAsync(p => p.Id == id && (isAdmin || p.UserId == userId));
         }
 
         public async Task<Project> CreateProjectAsync(Project project)
@@ -30,9 +36,10 @@ namespace TaskManager.Api.Services
             return project;
         }
 
-        public async Task<bool> DeleteProjectAsync(int id, int userId)
+        public async Task<bool> DeleteProjectAsync(int id, int userId, bool isAdmin = false)
         {
-            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
+            var project = await _context.Projects
+                .FirstOrDefaultAsync(p => p.Id == id && (isAdmin || p.UserId == userId));
             if (project == null) return false;
 
             _context.Projects.Remove(project);
