@@ -24,11 +24,13 @@ namespace TaskManager.Api.Controllers
             return int.Parse(idClaim!);
         }
 
+        private bool IsAdmin() => User.IsInRole("Admin");
+
         [HttpGet("{id}")]
         public async Task<ActionResult<TaskResponseDto>> GetTask(int id)
         {
             var userId = GetUserId();
-            var task = await _taskService.GetTaskByIdAsync(id, userId);
+            var task = await _taskService.GetTaskByIdAsync(id, userId, IsAdmin());
             if (task == null) return NotFound();
 
             return Ok(new TaskResponseDto
@@ -47,7 +49,7 @@ namespace TaskManager.Api.Controllers
         {
             var userId = GetUserId();
             var task = new Models.TaskItem { Title = dto.Title, IsDone = dto.IsDone, Priority = dto.Priority, DueDate = dto.DueDate };
-            var success = await _taskService.UpdateTaskAsync(id, task, userId);
+            var success = await _taskService.UpdateTaskAsync(id, task, userId, IsAdmin());
             if (!success) return NotFound();
             return NoContent();
         }
@@ -56,7 +58,7 @@ namespace TaskManager.Api.Controllers
         public async Task<IActionResult> DeleteTask(int id)
         {
             var userId = GetUserId();
-            var success = await _taskService.DeleteTaskAsync(id, userId);
+            var success = await _taskService.DeleteTaskAsync(id, userId, IsAdmin());
             if (!success) return NotFound();
             return NoContent();
         }
