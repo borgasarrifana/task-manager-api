@@ -20,6 +20,10 @@ namespace TaskManager.Api.Data
             modelBuilder.Entity<User>()
                 .Property(u => u.Role)
                 .HasDefaultValue(UserRole.Member);
+
+            modelBuilder.Entity<Project>()
+                .Property(p => p.IsCompleted)
+                .HasDefaultValue(false);
         }
     }
 }

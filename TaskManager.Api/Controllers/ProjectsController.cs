@@ -33,7 +33,8 @@ namespace TaskManager.Api.Controllers
         {
             Id = project.Id,
             Name = project.Name,
-            OwnerUsername = project.User?.Username
+            OwnerUsername = project.User?.Username,
+            IsCompleted = project.IsCompleted
         };
 
         private static TaskResponseDto ToTaskDto(TaskItem task) => new()
@@ -80,6 +81,7 @@ namespace TaskManager.Api.Controllers
             var userId = GetUserId();
             var project = await _projectService.GetProjectByIdAsync(projectId, userId, IsAdmin());
             if (project == null) return NotFound($"Project {projectId} not found.");
+            if (project.IsCompleted) return BadRequest("Cannot add tasks to a completed project.");
 
             var task = new TaskItem { Title = dto.Title, Priority = dto.Priority, DueDate = dto.DueDate };
             var created = await _taskService.CreateTaskAsync(task, projectId);
@@ -91,6 +93,24 @@ namespace TaskManager.Api.Controllers
         {
             var userId = GetUserId();
             var success = await _projectService.DeleteProjectAsync(id, userId, IsAdmin());
+            if (!success) return NotFound();
+            return NoContent();
+        }
+
+        [HttpPut("{id}/complete")]
+        public async Task<IActionResult> CompleteProject(int id)
+        {
+            var userId = GetUserId();
+            var success = await _projectService.CompleteProjectAsync(id, userId, IsAdmin());
+            if (!success) return NotFound();
+            return NoContent();
+        }
+
+        [HttpPut("{id}/reopen")]
+        public async Task<IActionResult> ReopenProject(int id)
+        {
+            var userId = GetUserId();
+            var success = await _projectService.ReopenProjectAsync(id, userId, IsAdmin());
             if (!success) return NotFound();
             return NoContent();
         }

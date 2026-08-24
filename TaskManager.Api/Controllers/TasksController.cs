@@ -49,18 +49,28 @@ namespace TaskManager.Api.Controllers
         {
             var userId = GetUserId();
             var task = new Models.TaskItem { Title = dto.Title, IsDone = dto.IsDone, Priority = dto.Priority, DueDate = dto.DueDate };
-            var success = await _taskService.UpdateTaskAsync(id, task, userId, IsAdmin());
-            if (!success) return NotFound();
-            return NoContent();
+            var result = await _taskService.UpdateTaskAsync(id, task, userId, IsAdmin());
+
+            return result switch
+            {
+                TaskOperationResult.Success => NoContent(),
+                TaskOperationResult.ProjectCompleted => BadRequest("Cannot modify tasks in a completed project."),
+                _ => NotFound()
+            };
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTask(int id)
         {
             var userId = GetUserId();
-            var success = await _taskService.DeleteTaskAsync(id, userId, IsAdmin());
-            if (!success) return NotFound();
-            return NoContent();
+            var result = await _taskService.DeleteTaskAsync(id, userId, IsAdmin());
+
+            return result switch
+            {
+                TaskOperationResult.Success => NoContent(),
+                TaskOperationResult.ProjectCompleted => BadRequest("Cannot modify tasks in a completed project."),
+                _ => NotFound()
+            };
         }
     }
 }

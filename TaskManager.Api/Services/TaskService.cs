@@ -37,12 +37,13 @@ namespace TaskManager.Api.Services
             return task;
         }
 
-        public async Task<bool> UpdateTaskAsync(int id, TaskItem updatedTask, int userId, bool isAdmin = false)
+        public async Task<TaskOperationResult> UpdateTaskAsync(int id, TaskItem updatedTask, int userId, bool isAdmin = false)
         {
             var task = await _context.Tasks
                 .Include(t => t.Project)
                 .FirstOrDefaultAsync(t => t.Id == id && (isAdmin || t.Project!.UserId == userId));
-            if (task == null) return false;
+            if (task == null) return TaskOperationResult.NotFound;
+            if (task.Project!.IsCompleted) return TaskOperationResult.ProjectCompleted;
 
             task.Title = updatedTask.Title;
             task.IsDone = updatedTask.IsDone;
@@ -51,19 +52,20 @@ namespace TaskManager.Api.Services
                 ? DateTime.SpecifyKind(updatedTask.DueDate.Value, DateTimeKind.Utc)
                 : null;
             await _context.SaveChangesAsync();
-            return true;
+            return TaskOperationResult.Success;
         }
 
-        public async Task<bool> DeleteTaskAsync(int id, int userId, bool isAdmin = false)
+        public async Task<TaskOperationResult> DeleteTaskAsync(int id, int userId, bool isAdmin = false)
         {
             var task = await _context.Tasks
                 .Include(t => t.Project)
                 .FirstOrDefaultAsync(t => t.Id == id && (isAdmin || t.Project!.UserId == userId));
-            if (task == null) return false;
+            if (task == null) return TaskOperationResult.NotFound;
+            if (task.Project!.IsCompleted) return TaskOperationResult.ProjectCompleted;
 
             _context.Tasks.Remove(task);
             await _context.SaveChangesAsync();
-            return true;
+            return TaskOperationResult.Success;
         }
     }
 }

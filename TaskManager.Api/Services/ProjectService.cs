@@ -47,5 +47,33 @@ namespace TaskManager.Api.Services
             await _context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<bool> CompleteProjectAsync(int id, int userId, bool isAdmin = false)
+        {
+            var project = await _context.Projects
+                .Include(p => p.Tasks)
+                .FirstOrDefaultAsync(p => p.Id == id && (isAdmin || p.UserId == userId));
+            if (project == null) return false;
+
+            project.IsCompleted = true;
+            foreach (var task in project.Tasks)
+            {
+                task.IsDone = true;
+            }
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> ReopenProjectAsync(int id, int userId, bool isAdmin = false)
+        {
+            var project = await _context.Projects
+                .FirstOrDefaultAsync(p => p.Id == id && (isAdmin || p.UserId == userId));
+            if (project == null) return false;
+
+            project.IsCompleted = false;
+            await _context.SaveChangesAsync();
+            return true;
+        }
     }
 }

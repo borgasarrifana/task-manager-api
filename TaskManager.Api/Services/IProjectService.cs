@@ -8,5 +8,7 @@ namespace TaskManager.Api.Services
         Task<Project?> GetProjectByIdAsync(int id, int userId, bool isAdmin = false);
         Task<Project> CreateProjectAsync(Project project);
         Task<bool> DeleteProjectAsync(int id, int userId, bool isAdmin = false);
+        Task<bool> CompleteProjectAsync(int id, int userId, bool isAdmin = false);
+        Task<bool> ReopenProjectAsync(int id, int userId, bool isAdmin = false);
     }
 }
