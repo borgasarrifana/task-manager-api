@@ -48,12 +48,20 @@ namespace TaskManager.Api.Controllers
             DueDate = task.DueDate
         };
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<ProjectResponseDto>>> GetProjects()
+                [HttpGet]
+        public async Task<ActionResult<PagedResult<ProjectResponseDto>>> GetProjects(
+            [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
             var userId = GetUserId();
-            var projects = await _projectService.GetAllProjectsAsync(userId, IsAdmin());
-            return Ok(projects.Select(ToDto));
+            var result = await _projectService.GetAllProjectsAsync(userId, IsAdmin(), page, pageSize);
+
+            return Ok(new PagedResult<ProjectResponseDto>
+            {
+                Items = result.Items.Select(ToDto).ToList(),
+                Page = result.Page,
+                PageSize = result.PageSize,
+                TotalCount = result.TotalCount
+            });
         }
 
         [HttpPost]
