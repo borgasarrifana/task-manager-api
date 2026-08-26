@@ -15,7 +15,7 @@ namespace TaskManager.Api.Services
             _context = context;
         }
 
-        public async Task<PagedResult<Project>> GetAllProjectsAsync(int userId, bool isAdmin = false, int page = 1, int pageSize = 20)
+        public async Task<PagedResult<Project>> GetAllProjectsAsync(int userId, bool isAdmin = false, int page = 1, int pageSize = 10)
         {
             page = page < 1 ? 1 : page;
             pageSize = pageSize < 1 ? 1 : Math.Min(pageSize, MaxPageSize);

@@ -22,7 +22,7 @@ namespace TaskManager.Api.Services
                 .FirstOrDefaultAsync(t => t.Id == id && (isAdmin || t.Project!.UserId == userId));
         }
 
-        public async Task<PagedResult<TaskItem>> GetTasksByProjectIdAsync(int projectId, int page = 1, int pageSize = 20)
+        public async Task<PagedResult<TaskItem>> GetTasksByProjectIdAsync(int projectId, int page = 1, int pageSize = 10)
         {
             page = page < 1 ? 1 : page;
             pageSize = pageSize < 1 ? 1 : Math.Min(pageSize, MaxPageSize);
