@@ -3,6 +3,7 @@ using System.Security.Claims;
 using TaskManager.Api.DTOs;
 using TaskManager.Api.Models;
 using TaskManager.Api.Services;
+using TaskManager.Api.Common;
 using Microsoft.AspNetCore.Authorization;
 
 namespace TaskManager.Api.Controllers
@@ -64,15 +65,23 @@ namespace TaskManager.Api.Controllers
             return CreatedAtAction(nameof(GetProjects), new { id = created.Id }, ToDto(created));
         }
 
-        [HttpGet("{projectId}/tasks")]
-        public async Task<ActionResult<IEnumerable<TaskResponseDto>>> GetProjectTasks(int projectId)
+                [HttpGet("{projectId}/tasks")]
+        public async Task<ActionResult<PagedResult<TaskResponseDto>>> GetProjectTasks(
+            int projectId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
             var userId = GetUserId();
             var project = await _projectService.GetProjectByIdAsync(projectId, userId, IsAdmin());
             if (project == null) return NotFound($"Project {projectId} not found.");
 
-            var tasks = await _taskService.GetTasksByProjectIdAsync(projectId);
-            return Ok(tasks.Select(ToTaskDto));
+            var result = await _taskService.GetTasksByProjectIdAsync(projectId, page, pageSize);
+
+            return Ok(new PagedResult<TaskResponseDto>
+            {
+                Items = result.Items.Select(ToTaskDto).ToList(),
+                Page = result.Page,
+                PageSize = result.PageSize,
+                TotalCount = result.TotalCount
+            });
         }
 
         [HttpPost("{projectId}/tasks")]

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TaskManager.Api.Common;
 using TaskManager.Api.Data;
 using TaskManager.Api.Models;
 
@@ -6,6 +7,7 @@ namespace TaskManager.Api.Services
 {
     public class ProjectService : IProjectService
     {
+        private const int MaxPageSize = 100;
         private readonly AppDbContext _context;
 
         public ProjectService(AppDbContext context)
@@ -13,14 +15,31 @@ namespace TaskManager.Api.Services
             _context = context;
         }
 
-        public async Task<IEnumerable<Project>> GetAllProjectsAsync(int userId, bool isAdmin = false)
+        public async Task<PagedResult<Project>> GetAllProjectsAsync(int userId, bool isAdmin = false, int page = 1, int pageSize = 20)
         {
+            page = page < 1 ? 1 : page;
+            pageSize = pageSize < 1 ? 1 : Math.Min(pageSize, MaxPageSize);
+
             var query = _context.Projects.Include(p => p.User).AsQueryable();
             if (!isAdmin)
             {
                 query = query.Where(p => p.UserId == userId);
             }
-            return await query.ToListAsync();
+
+            var totalCount = await query.CountAsync();
+            var items = await query
+                .OrderBy(p => p.Id)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return new PagedResult<Project>
+            {
+                Items = items,
+                Page = page,
+                PageSize = pageSize,
+                TotalCount = totalCount
+            };
         }
 
         public async Task<Project?> GetProjectByIdAsync(int id, int userId, bool isAdmin = false)

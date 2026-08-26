@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TaskManager.Api.Common;
 using TaskManager.Api.Data;
 using TaskManager.Api.Models;
 
@@ -6,6 +7,7 @@ namespace TaskManager.Api.Services
 {
     public class TaskService : ITaskService
     {
+        private const int MaxPageSize = 100;
         private readonly AppDbContext _context;
 
         public TaskService(AppDbContext context)
@@ -20,9 +22,28 @@ namespace TaskManager.Api.Services
                 .FirstOrDefaultAsync(t => t.Id == id && (isAdmin || t.Project!.UserId == userId));
         }
 
-        public async Task<IEnumerable<TaskItem>> GetTasksByProjectIdAsync(int projectId)
+        public async Task<PagedResult<TaskItem>> GetTasksByProjectIdAsync(int projectId, int page = 1, int pageSize = 20)
         {
-            return await _context.Tasks.Where(t => t.ProjectId == projectId).ToListAsync();
+            page = page < 1 ? 1 : page;
+            pageSize = pageSize < 1 ? 1 : Math.Min(pageSize, MaxPageSize);
+
+            var query = _context.Tasks.Where(t => t.ProjectId == projectId);
+
+            var totalCount = await query.CountAsync();
+            var items = await query
+                .OrderBy(t => t.DueDate == null)   // tasks without a due date sort last
+                .ThenBy(t => t.DueDate)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return new PagedResult<TaskItem>
+            {
+                Items = items,
+                Page = page,
+                PageSize = pageSize,
+                TotalCount = totalCount
+            };
         }
 
         public async Task<TaskItem> CreateTaskAsync(TaskItem task, int projectId)

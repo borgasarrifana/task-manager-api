@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using TaskManager.Api.Data;
 using TaskManager.Api.DTOs;
+using TaskManager.Api.Common;
 
 namespace TaskManager.Api.Controllers
 {
@@ -25,10 +26,21 @@ namespace TaskManager.Api.Controllers
             return int.Parse(idClaim!);
         }
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<UserResponseDto>>> GetUsers()
+                [HttpGet]
+        public async Task<ActionResult<PagedResult<UserResponseDto>>> GetUsers(
+            [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
-            var users = await _context.Users
+            const int maxPageSize = 100;
+            page = page < 1 ? 1 : page;
+            pageSize = pageSize < 1 ? 1 : Math.Min(pageSize, maxPageSize);
+
+            var query = _context.Users.AsQueryable();
+
+            var totalCount = await query.CountAsync();
+            var users = await query
+                .OrderBy(u => u.Id)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(u => new UserResponseDto
                 {
                     Id = u.Id,
@@ -37,7 +49,13 @@ namespace TaskManager.Api.Controllers
                 })
                 .ToListAsync();
 
-            return Ok(users);
+            return Ok(new PagedResult<UserResponseDto>
+            {
+                Items = users,
+                Page = page,
+                PageSize = pageSize,
+                TotalCount = totalCount
+            });
         }
 
         [HttpGet("{id}/projects")]
