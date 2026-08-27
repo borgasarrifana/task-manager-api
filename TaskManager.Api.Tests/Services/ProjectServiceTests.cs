@@ -11,6 +11,10 @@ namespace TaskManager.Api.Tests.Services
         public async Task GetAllProjectsAsync_NonAdmin_ReturnsOnlyOwnProjects()
         {
             using var context = TestDbContextFactory.Create();
+            context.Users.AddRange(
+                new User { Id = 1, Username = "alice" },
+                new User { Id = 2, Username = "bob" }
+            );
             context.Projects.AddRange(
                 new Project { Id = 1, Name = "Alice's Project", UserId = 1 },
                 new Project { Id = 2, Name = "Bob's Project", UserId = 2 }
@@ -19,6 +23,7 @@ namespace TaskManager.Api.Tests.Services
 
             var service = new ProjectService(context);
             var result = await service.GetAllProjectsAsync(userId: 1, isAdmin: false);
+
             Assert.Single(result.Items);
             Assert.Equal("Alice's Project", result.Items.First().Name);
         }
@@ -27,6 +32,10 @@ namespace TaskManager.Api.Tests.Services
         public async Task GetAllProjectsAsync_Admin_ReturnsAllProjects()
         {
             using var context = TestDbContextFactory.Create();
+            context.Users.AddRange(
+                new User { Id = 1, Username = "alice" },
+                new User { Id = 2, Username = "bob" }
+            );
             context.Projects.AddRange(
                 new Project { Id = 1, Name = "Alice's Project", UserId = 1 },
                 new Project { Id = 2, Name = "Bob's Project", UserId = 2 }
@@ -35,6 +44,7 @@ namespace TaskManager.Api.Tests.Services
 
             var service = new ProjectService(context);
             var result = await service.GetAllProjectsAsync(userId: 1, isAdmin: true);
+
             Assert.Equal(2, result.Items.Count);
         }
 
