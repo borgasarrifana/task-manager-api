@@ -73,15 +73,16 @@ namespace TaskManager.Api.Controllers
             return CreatedAtAction(nameof(GetProjects), new { id = created.Id }, ToDto(created));
         }
 
-                [HttpGet("{projectId}/tasks")]
+        [HttpGet("{projectId}/tasks")]
         public async Task<ActionResult<PagedResult<TaskResponseDto>>> GetProjectTasks(
-            int projectId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+            int projectId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+            [FromQuery] Priority? priority = null, [FromQuery] string? sortBy = null)
         {
             var userId = GetUserId();
             var project = await _projectService.GetProjectByIdAsync(projectId, userId, IsAdmin());
             if (project == null) return NotFound($"Project {projectId} not found.");
 
-            var result = await _taskService.GetTasksByProjectIdAsync(projectId, page, pageSize);
+            var result = await _taskService.GetTasksByProjectIdAsync(projectId, page, pageSize, priority, sortBy);
 
             return Ok(new PagedResult<TaskResponseDto>
             {

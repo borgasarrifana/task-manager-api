@@ -22,17 +22,28 @@ namespace TaskManager.Api.Services
                 .FirstOrDefaultAsync(t => t.Id == id && (isAdmin || t.Project!.UserId == userId));
         }
 
-        public async Task<PagedResult<TaskItem>> GetTasksByProjectIdAsync(int projectId, int page = 1, int pageSize = 10)
+        public async Task<PagedResult<TaskItem>> GetTasksByProjectIdAsync(int projectId, int page = 1, int pageSize = 20, Priority? priority = null, string? sortBy = null)
         {
             page = page < 1 ? 1 : page;
             pageSize = pageSize < 1 ? 1 : Math.Min(pageSize, MaxPageSize);
 
             var query = _context.Tasks.Where(t => t.ProjectId == projectId);
 
+            if (priority.HasValue)
+            {
+                query = query.Where(t => t.Priority == priority.Value);
+            }
+
+            query = sortBy switch
+            {
+                "priority" => query.OrderBy(t => t.Priority == Priority.High ? 0 : t.Priority == Priority.Medium ? 1 : 2),
+                "dueDate" => query.OrderBy(t => t.DueDate == null).ThenBy(t => t.DueDate),
+                "created" => query.OrderByDescending(t => t.CreatedAt),
+                _ => query.OrderBy(t => t.DueDate == null).ThenBy(t => t.DueDate)
+            };
+
             var totalCount = await query.CountAsync();
             var items = await query
-                .OrderBy(t => t.DueDate == null)   // tasks without a due date sort last
-                .ThenBy(t => t.DueDate)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
