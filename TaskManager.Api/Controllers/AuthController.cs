@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using TaskManager.Api.Data;
 using TaskManager.Api.DTOs;
@@ -16,6 +17,7 @@ namespace TaskManager.Api.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IConfiguration _config;
+        private const int RefreshTokenDays = 7;
 
         public AuthController(AppDbContext context, IConfiguration config)
         {
@@ -54,8 +56,88 @@ namespace TaskManager.Api.Controllers
                 return Unauthorized("Invalid username or password.");
             }
 
-            var token = GenerateJwtToken(user);
-            return Ok(new AuthResponseDto { Token = token, Role = user.Role.ToString() });
+            var accessToken = GenerateJwtToken(user);
+            var refreshToken = await CreateRefreshTokenAsync(user.Id);
+
+            return Ok(new AuthResponseDto
+            {
+                Token = accessToken,
+                RefreshToken = refreshToken,
+                Role = user.Role.ToString()
+            });
+        }
+
+        [HttpPost("refresh")]
+        public async Task<ActionResult<AuthResponseDto>> Refresh(RefreshRequestDto dto)
+        {
+            var tokenHash = HashToken(dto.RefreshToken);
+
+            var existing = await _context.RefreshTokens
+                .Include(rt => rt.User)
+                .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash);
+
+            if (existing == null || existing.IsRevoked || existing.ExpiresAt < DateTime.UtcNow)
+            {
+                return Unauthorized("Invalid or expired refresh token.");
+            }
+
+            // Rotate: revoke the used token, issue a new one
+            existing.IsRevoked = true;
+
+            var newRefreshToken = await CreateRefreshTokenAsync(existing.UserId);
+            var newAccessToken = GenerateJwtToken(existing.User!);
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new AuthResponseDto
+            {
+                Token = newAccessToken,
+                RefreshToken = newRefreshToken,
+                Role = existing.User!.Role.ToString()
+            });
+        }
+
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout(RefreshRequestDto dto)
+        {
+            var tokenHash = HashToken(dto.RefreshToken);
+            var existing = await _context.RefreshTokens.FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash);
+
+            if (existing != null)
+            {
+                existing.IsRevoked = true;
+                await _context.SaveChangesAsync();
+            }
+
+            return NoContent();
+        }
+
+        private async Task<string> CreateRefreshTokenAsync(int userId)
+        {
+            var rawToken = GenerateRawToken();
+            var refreshToken = new RefreshToken
+            {
+                TokenHash = HashToken(rawToken),
+                UserId = userId,
+                ExpiresAt = DateTime.UtcNow.AddDays(RefreshTokenDays)
+            };
+
+            _context.RefreshTokens.Add(refreshToken);
+            await _context.SaveChangesAsync();
+
+            return rawToken;
+        }
+
+        private static string GenerateRawToken()
+        {
+            var bytes = RandomNumberGenerator.GetBytes(64);
+            return Convert.ToBase64String(bytes);
+        }
+
+        private static string HashToken(string token)
+        {
+            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+            return Convert.ToHexString(bytes);
         }
 
         private string GenerateJwtToken(User user)
@@ -74,7 +156,7 @@ namespace TaskManager.Api.Controllers
                 issuer: _config["Jwt:Issuer"],
                 audience: _config["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddHours(2),
+                expires: DateTime.UtcNow.AddMinutes(15),
                 signingCredentials: creds
             );
 

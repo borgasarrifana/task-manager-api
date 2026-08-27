@@ -1,5 +1,7 @@
 # Task Manager API
 
+![CI](https://github.com/borgasarrifana/task-manager-api/actions/workflows/ci.yml/badge.svg)
+
 A RESTful task management API built with ASP.NET Core, demonstrating a layered architecture, JWT authentication, and a relational data model with EF Core and PostgreSQL.
 
 **Live API:** https://task-manager-api-1-iusg.onrender.com
