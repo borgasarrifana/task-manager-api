@@ -14,7 +14,7 @@ namespace TaskManager.Api.Middleware
             _logger = logger;
         }
 
-        public async Task InvokeAsync(HttpContext context)
+                public async Task InvokeAsync(HttpContext context)
         {
             try
             {
@@ -22,7 +22,10 @@ namespace TaskManager.Api.Middleware
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unhandled exception occurred.");
+                _logger.LogError(ex,
+                    "Unhandled exception occurred while processing {Method} {Path}",
+                    context.Request.Method,
+                    context.Request.Path);
 
                 context.Response.ContentType = "application/json";
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;

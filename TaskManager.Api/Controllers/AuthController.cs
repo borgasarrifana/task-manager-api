@@ -17,12 +17,14 @@ namespace TaskManager.Api.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IConfiguration _config;
+        private readonly ILogger<AuthController> _logger;
         private const int RefreshTokenDays = 7;
 
-        public AuthController(AppDbContext context, IConfiguration config)
+        public AuthController(AppDbContext context, IConfiguration config, ILogger<AuthController> logger)
         {
             _context = context;
             _config = config;
+            _logger = logger;
         }
 
         [HttpPost("register")]
@@ -52,9 +54,12 @@ namespace TaskManager.Api.Controllers
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == dto.Username);
 
             if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
-            {
+{
+                _logger.LogWarning("Failed login attempt for username {Username}", dto.Username);
                 return Unauthorized("Invalid username or password.");
             }
+
+            _logger.LogInformation("User {Username} (Id: {UserId}) logged in", user.Username, user.Id);
 
             var accessToken = GenerateJwtToken(user);
             var refreshToken = await CreateRefreshTokenAsync(user.Id);
@@ -78,6 +83,7 @@ namespace TaskManager.Api.Controllers
 
             if (existing == null || existing.IsRevoked || existing.ExpiresAt < DateTime.UtcNow)
             {
+                _logger.LogWarning("Invalid or expired refresh token attempted");
                 return Unauthorized("Invalid or expired refresh token.");
             }
 
@@ -88,6 +94,7 @@ namespace TaskManager.Api.Controllers
             var newAccessToken = GenerateJwtToken(existing.User!);
 
             await _context.SaveChangesAsync();
+            _logger.LogInformation("Refreshed tokens for user {UserId}", existing.UserId);
 
             return Ok(new AuthResponseDto
             {
@@ -95,6 +102,7 @@ namespace TaskManager.Api.Controllers
                 RefreshToken = newRefreshToken,
                 Role = existing.User!.Role.ToString()
             });
+
         }
 
         [HttpPost("logout")]
@@ -107,6 +115,7 @@ namespace TaskManager.Api.Controllers
             {
                 existing.IsRevoked = true;
                 await _context.SaveChangesAsync();
+                _logger.LogInformation("User {UserId} logged out, refresh token revoked", existing.UserId);
             }
 
             return NoContent();
