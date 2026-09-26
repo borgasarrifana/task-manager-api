@@ -15,11 +15,13 @@ namespace TaskManager.Api.Controllers
     {
         private readonly IProjectService _projectService;
         private readonly ITaskService _taskService;
+        private readonly IRealtimeNotifier _notifier;
 
-        public ProjectsController(IProjectService projectService, ITaskService taskService)
+        public ProjectsController(IProjectService projectService, ITaskService taskService, IRealtimeNotifier notifier)
         {
             _projectService = projectService;
             _taskService = taskService;
+            _notifier = notifier;
         }
 
         private int GetUserId()
@@ -48,7 +50,7 @@ namespace TaskManager.Api.Controllers
             DueDate = task.DueDate
         };
 
-                [HttpGet]
+        [HttpGet]
         public async Task<ActionResult<PagedResult<ProjectResponseDto>>> GetProjects(
             [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
@@ -70,6 +72,8 @@ namespace TaskManager.Api.Controllers
             var userId = GetUserId();
             var project = new Project { Name = dto.Name, UserId = userId };
             var created = await _projectService.CreateProjectAsync(project);
+
+            await _notifier.ProjectChangedAsync(created.Id, userId, "created");
             return CreatedAtAction(nameof(GetProjects), new { id = created.Id }, ToDto(created));
         }
 
@@ -103,6 +107,8 @@ namespace TaskManager.Api.Controllers
 
             var task = new TaskItem { Title = dto.Title, Priority = dto.Priority, DueDate = dto.DueDate };
             var created = await _taskService.CreateTaskAsync(task, projectId);
+
+            await _notifier.TaskChangedAsync(projectId, project.UserId, created.Id, "created");
             return CreatedAtAction(nameof(GetProjectTasks), new { projectId }, ToTaskDto(created));
         }
 
@@ -110,8 +116,14 @@ namespace TaskManager.Api.Controllers
         public async Task<IActionResult> DeleteProject(int id)
         {
             var userId = GetUserId();
+            var project = await _projectService.GetProjectByIdAsync(id, userId, IsAdmin());
+            if (project == null) return NotFound();
+
+            var ownerId = project.UserId;
             var success = await _projectService.DeleteProjectAsync(id, userId, IsAdmin());
             if (!success) return NotFound();
+
+            await _notifier.ProjectChangedAsync(id, ownerId, "deleted");
             return NoContent();
         }
 
@@ -119,8 +131,13 @@ namespace TaskManager.Api.Controllers
         public async Task<IActionResult> CompleteProject(int id)
         {
             var userId = GetUserId();
+            var project = await _projectService.GetProjectByIdAsync(id, userId, IsAdmin());
+            if (project == null) return NotFound();
+
             var success = await _projectService.CompleteProjectAsync(id, userId, IsAdmin());
             if (!success) return NotFound();
+
+            await _notifier.ProjectChangedAsync(id, project.UserId, "completed");
             return NoContent();
         }
 
@@ -128,8 +145,13 @@ namespace TaskManager.Api.Controllers
         public async Task<IActionResult> ReopenProject(int id)
         {
             var userId = GetUserId();
+            var project = await _projectService.GetProjectByIdAsync(id, userId, IsAdmin());
+            if (project == null) return NotFound();
+
             var success = await _projectService.ReopenProjectAsync(id, userId, IsAdmin());
             if (!success) return NotFound();
+
+            await _notifier.ProjectChangedAsync(id, project.UserId, "reopened");
             return NoContent();
         }
     }
