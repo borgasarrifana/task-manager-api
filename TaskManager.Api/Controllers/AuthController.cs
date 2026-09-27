@@ -8,6 +8,7 @@ using System.Text;
 using TaskManager.Api.Data;
 using TaskManager.Api.DTOs;
 using TaskManager.Api.Models;
+using TaskManager.Api.Common;
 
 namespace TaskManager.Api.Controllers
 {
@@ -27,24 +28,35 @@ namespace TaskManager.Api.Controllers
             _logger = logger;
         }
 
-        [HttpPost("register")]
+                [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterDto dto)
         {
+            var email = EmailAddressHelper.Normalize(dto.Email);
+
             if (await _context.Users.AnyAsync(u => u.Username == dto.Username))
             {
                 return BadRequest("Username already taken.");
+            }
+
+            if (await _context.Users.AnyAsync(u => u.Email == email))
+            {
+                return BadRequest("Email already registered.");
             }
 
             var user = new User
             {
                 Username = dto.Username,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
-                Role = UserRole.Member
+                Role = UserRole.Member,
+                Email = email,
+                EmailConfirmed = false,
+                EmailRemindersEnabled = true
             };
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
+            _logger.LogInformation("User {Username} (Id: {UserId}) registered", user.Username, user.Id);
             return Ok("User registered successfully.");
         }
 

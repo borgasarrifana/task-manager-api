@@ -45,7 +45,9 @@ namespace TaskManager.Api.Controllers
                 {
                     Id = u.Id,
                     Username = u.Username,
-                    Role = u.Role
+                    Role = u.Role,
+                    Email = u.Email,
+                    EmailConfirmed = u.EmailConfirmed
                 })
                 .ToListAsync();
 

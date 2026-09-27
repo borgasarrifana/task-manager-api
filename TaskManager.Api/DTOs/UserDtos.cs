@@ -8,6 +8,8 @@ namespace TaskManager.Api.DTOs
         public int Id { get; set; }
         public string Username { get; set; } = string.Empty;
         public UserRole Role { get; set; }
+        public string? Email { get; set; }
+        public bool EmailConfirmed { get; set; }
     }
 
     public class UpdateUserRoleDto

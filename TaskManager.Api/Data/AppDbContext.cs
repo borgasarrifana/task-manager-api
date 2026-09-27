@@ -18,9 +18,16 @@ namespace TaskManager.Api.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            modelBuilder.Entity<User>()
-                .Property(u => u.Role)
-                .HasDefaultValue(UserRole.Member);
+            modelBuilder.Entity<User>(entity =>
+            {
+                entity.Property(u => u.Role).HasDefaultValue(UserRole.Member);
+
+                // 254 = maximum length of an email address (RFC 5321)
+                entity.Property(u => u.Email).HasMaxLength(254);
+
+                // Unique among non-null values — Postgres allows many NULLs in a unique index
+                entity.HasIndex(u => u.Email).IsUnique();
+            });
 
             modelBuilder.Entity<Project>()
                 .Property(p => p.IsCompleted)

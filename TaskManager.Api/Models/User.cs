@@ -6,5 +6,10 @@ namespace TaskManager.Api.Models
         public string Username { get; set; } = string.Empty;
         public string PasswordHash { get; set; } = string.Empty;
         public UserRole Role { get; set; } = UserRole.Member;
+
+        // Stored normalized (trimmed, lowercase). Null for accounts created before emails existed.
+        public string? Email { get; set; }
+        public bool EmailConfirmed { get; set; }
+        public bool EmailRemindersEnabled { get; set; }
     }
 }
