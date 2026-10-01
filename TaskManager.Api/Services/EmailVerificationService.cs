@@ -48,7 +48,7 @@ namespace TaskManager.Api.Services
             try
             {
                 await _emailSender.SendAsync(
-                    EmailTemplates.Verification(user.Email, user.Username, link),
+                    EmailTemplates.Verification(user.Email, user.Username, link, _appOptions.FrontendBaseUrl),
                     cancellationToken);
                 _logger.LogInformation("Verification email sent to user {UserId}", user.Id);
                 return true;
