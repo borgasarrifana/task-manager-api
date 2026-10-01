@@ -27,6 +27,8 @@ namespace TaskManager.Api.Data
 
                 // Unique among non-null values — Postgres allows many NULLs in a unique index
                 entity.HasIndex(u => u.Email).IsUnique();
+                                
+                entity.HasIndex(u => u.EmailVerificationTokenHash);
             });
 
             modelBuilder.Entity<Project>()

@@ -9,6 +9,7 @@ using TaskManager.Api.Data;
 using TaskManager.Api.DTOs;
 using TaskManager.Api.Models;
 using TaskManager.Api.Common;
+using TaskManager.Api.Services;
 
 namespace TaskManager.Api.Controllers
 {
@@ -19,13 +20,19 @@ namespace TaskManager.Api.Controllers
         private readonly AppDbContext _context;
         private readonly IConfiguration _config;
         private readonly ILogger<AuthController> _logger;
+        private readonly IEmailVerificationService _verification;
         private const int RefreshTokenDays = 7;
 
-        public AuthController(AppDbContext context, IConfiguration config, ILogger<AuthController> logger)
+        public AuthController(
+            AppDbContext context,
+            IConfiguration config,
+            ILogger<AuthController> logger,
+            IEmailVerificationService verification)
         {
             _context = context;
             _config = config;
             _logger = logger;
+            _verification = verification;
         }
 
                 [HttpPost("register")]
@@ -57,6 +64,7 @@ namespace TaskManager.Api.Controllers
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("User {Username} (Id: {UserId}) registered", user.Username, user.Id);
+            await _verification.SendVerificationEmailAsync(user);
             return Ok("User registered successfully.");
         }
 

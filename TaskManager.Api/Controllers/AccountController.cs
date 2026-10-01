@@ -7,6 +7,7 @@ using TaskManager.Api.Common;
 using TaskManager.Api.Data;
 using TaskManager.Api.DTOs;
 using TaskManager.Api.Models;
+using TaskManager.Api.Services;
 
 namespace TaskManager.Api.Controllers
 {
@@ -15,12 +16,22 @@ namespace TaskManager.Api.Controllers
     [Authorize]
     public class AccountController : ControllerBase
     {
+        private static readonly TimeSpan ResendCooldown = TimeSpan.FromMinutes(1);
+
         private readonly AppDbContext _context;
+        private readonly IEmailVerificationService _verification;
+        private readonly TimeProvider _time;
         private readonly ILogger<AccountController> _logger;
 
-        public AccountController(AppDbContext context, ILogger<AccountController> logger)
+        public AccountController(
+            AppDbContext context,
+            IEmailVerificationService verification,
+            TimeProvider time,
+            ILogger<AccountController> logger)
         {
             _context = context;
+            _verification = verification;
+            _time = time;
             _logger = logger;
         }
 
@@ -54,8 +65,9 @@ namespace TaskManager.Api.Controllers
             if (user == null) return NotFound();
 
             var email = EmailAddressHelper.Normalize(dto.Email);
+            var emailChanged = email != user.Email;
 
-            if (email != user.Email)
+            if (emailChanged)
             {
                 if (email != null && await _context.Users.AnyAsync(u => u.Email == email && u.Id != user.Id))
                 {
@@ -63,11 +75,12 @@ namespace TaskManager.Api.Controllers
                 }
 
                 user.Email = email;
-                user.EmailConfirmed = false; // a new address must be verified again (Phase 2)
+                user.EmailConfirmed = false;
+                user.EmailVerificationTokenHash = null; // a link for the old address must stop working
+                user.EmailVerificationExpiresAt = null;
                 _logger.LogInformation("User {UserId} changed their email address", user.Id);
             }
 
-            // Reminders need an address to go to
             user.EmailRemindersEnabled = email != null && dto.EmailRemindersEnabled;
 
             try
@@ -76,11 +89,47 @@ namespace TaskManager.Api.Controllers
             }
             catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
             {
-                // Another account claimed this address between the check above and the save
                 return BadRequest("Email already registered.");
             }
 
+            if (emailChanged && email != null)
+            {
+                await _verification.SendVerificationEmailAsync(user);
+            }
+
             return Ok(ToDto(user));
+        }
+
+        [HttpPost("resend-verification")]
+        public async Task<IActionResult> ResendVerification()
+        {
+            var user = await _context.Users.FindAsync(GetUserId());
+            if (user == null) return NotFound();
+            if (user.Email == null) return BadRequest("Add an email address first.");
+            if (user.EmailConfirmed) return BadRequest("Your email is already verified.");
+
+            var now = _time.GetUtcNow().UtcDateTime;
+            if (user.EmailVerificationSentAt != null && now - user.EmailVerificationSentAt < ResendCooldown)
+            {
+                return StatusCode(StatusCodes.Status429TooManyRequests,
+                    "Please wait a minute before requesting another email.");
+            }
+
+            var sent = await _verification.SendVerificationEmailAsync(user);
+            return sent
+                ? NoContent()
+                : StatusCode(StatusCodes.Status503ServiceUnavailable, "Could not send the email right now. Try again shortly.");
+        }
+
+        // Anonymous: the link is often opened on a device where the user isn't logged in
+        [AllowAnonymous]
+        [HttpPost("verify-email")]
+        public async Task<IActionResult> VerifyEmail(VerifyEmailDto dto)
+        {
+            var verified = await _verification.VerifyAsync(dto.Token);
+            return verified
+                ? Ok("Email verified.")
+                : BadRequest("This verification link is invalid or has expired.");
         }
     }
 }

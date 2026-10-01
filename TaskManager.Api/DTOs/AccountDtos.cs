@@ -21,4 +21,10 @@ namespace TaskManager.Api.DTOs
 
         public bool EmailRemindersEnabled { get; set; }
     }
+    
+    public class VerifyEmailDto
+    {
+        [Required]
+        public string Token { get; set; } = string.Empty;
+    }
 }
