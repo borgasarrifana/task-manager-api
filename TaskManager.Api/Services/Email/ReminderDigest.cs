@@ -7,8 +7,9 @@ namespace TaskManager.Api.Services.Email
     public record ReminderDigest(
         IReadOnlyList<DigestItem> Overdue,
         IReadOnlyList<DigestItem> DueToday,
-        IReadOnlyList<DigestItem> DueTomorrow)
+        IReadOnlyList<DigestItem> DueTomorrow,
+        IReadOnlyList<DigestItem> Upcoming)
     {
-        public int Total => Overdue.Count + DueToday.Count + DueTomorrow.Count;
+        public int Total => Overdue.Count + DueToday.Count + DueTomorrow.Count + Upcoming.Count;
     }
 }

@@ -47,6 +47,8 @@ namespace TaskManager.Api.Controllers
             Email = user.Email,
             EmailConfirmed = user.EmailConfirmed,
             EmailRemindersEnabled = user.EmailRemindersEnabled,
+            ReminderFrequency = user.ReminderFrequency,
+            ReminderDays = ReminderSchedule.FromMask(user.ReminderDays),
             Role = user.Role
         };
 
@@ -63,6 +65,17 @@ namespace TaskManager.Api.Controllers
         {
             var user = await _context.Users.FindAsync(GetUserId());
             if (user == null) return NotFound();
+
+            if (!Enum.IsDefined(dto.ReminderFrequency))
+            {
+                return BadRequest("Unknown reminder frequency.");
+            }
+
+            var dayMask = ReminderSchedule.ToMask(dto.ReminderDays ?? new List<DayOfWeek>());
+            if (dto.ReminderFrequency == ReminderFrequency.Weekly && dayMask == 0)
+            {
+                return BadRequest("Choose at least one day for reminders.");
+            }
 
             var email = EmailAddressHelper.Normalize(dto.Email);
             var emailChanged = email != user.Email;
@@ -82,6 +95,8 @@ namespace TaskManager.Api.Controllers
             }
 
             user.EmailRemindersEnabled = email != null && dto.EmailRemindersEnabled;
+            user.ReminderFrequency = dto.ReminderFrequency;
+            user.ReminderDays = dayMask; // kept even when not Weekly, so switching back restores the choice
 
             try
             {

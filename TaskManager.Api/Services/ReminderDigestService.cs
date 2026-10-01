@@ -32,30 +32,38 @@ namespace TaskManager.Api.Services
             _delayBetweenSends = delayBetweenSends ?? TimeSpan.FromMilliseconds(600);
         }
 
+        private static DateTime StartOfDayUtc(DateOnly day) => day.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+
         public async Task<ReminderRunResult> SendDueRemindersAsync(CancellationToken cancellationToken = default)
         {
-            var today = _time.GetUtcNow().UtcDateTime.Date;
+            var todayDate = DateOnly.FromDateTime(_time.GetUtcNow().UtcDateTime);
+            var today = StartOfDayUtc(todayDate);
             var tomorrow = today.AddDays(1);
             var dayAfterTomorrow = today.AddDays(2);
-            var todayDate = DateOnly.FromDateTime(today);
 
-            // Query 1: who is eligible and hasn't had today's digest yet
-            var users = await _context.Users
-                .Where(u => u.Email != null
-                    && u.EmailConfirmed
-                    && u.EmailRemindersEnabled
-                    && (u.LastReminderSentOn == null || u.LastReminderSentOn < todayDate))
+            // Query 1: opted-in, verified users; schedules are then checked in memory
+            var candidates = await _context.Users
+                .Where(u => u.Email != null && u.EmailConfirmed && u.EmailRemindersEnabled)
                 .ToListAsync(cancellationToken);
+
+            var users = candidates
+                .Where(u => ReminderSchedule.IsDue(u.ReminderFrequency, u.ReminderDays, u.LastReminderSentOn, todayDate))
+                .ToList();
 
             if (users.Count == 0)
             {
-                _logger.LogInformation("Reminder run: no eligible users");
+                _logger.LogInformation("Reminder run: no users due today");
                 return new ReminderRunResult(0, 0, 0, 0);
             }
 
+            // Each digest covers everything due before the user's next digest, including that day
+            var horizons = users.ToDictionary(
+                u => u.Id,
+                u => StartOfDayUtc(ReminderSchedule.NextDue(u.ReminderFrequency, u.ReminderDays, todayDate)).AddDays(1));
+            var maxHorizon = horizons.Values.Max();
             var userIds = users.Select(u => u.Id).ToList();
 
-            // Query 2: all their open, due-soon tasks in active projects, in one round trip
+            // Query 2: all their open tasks due within the furthest horizon, in one round trip
             var dueTasks = await (
                 from t in _context.Tasks.AsNoTracking()
                 join p in _context.Projects.AsNoTracking() on t.ProjectId equals p.Id
@@ -63,7 +71,7 @@ namespace TaskManager.Api.Services
                       && !p.IsCompleted
                       && !t.IsDone
                       && t.DueDate != null
-                      && t.DueDate < dayAfterTomorrow
+                      && t.DueDate < maxHorizon
                 orderby t.DueDate, t.Title
                 select new
                 {
@@ -84,7 +92,8 @@ namespace TaskManager.Api.Services
 
             foreach (var user in users)
             {
-                var items = tasksByUser[user.Id].ToList();
+                var horizon = horizons[user.Id];
+                var items = tasksByUser[user.Id].Where(i => i.DueDate < horizon).ToList();
                 if (items.Count == 0)
                 {
                     nothingDue++;
@@ -94,7 +103,8 @@ namespace TaskManager.Api.Services
                 var digest = new ReminderDigest(
                     Overdue: items.Where(i => i.DueDate < today).ToList(),
                     DueToday: items.Where(i => i.DueDate >= today && i.DueDate < tomorrow).ToList(),
-                    DueTomorrow: items.Where(i => i.DueDate >= tomorrow).ToList());
+                    DueTomorrow: items.Where(i => i.DueDate >= tomorrow && i.DueDate < dayAfterTomorrow).ToList(),
+                    Upcoming: items.Where(i => i.DueDate >= dayAfterTomorrow).ToList());
 
                 if (!isFirstSend && _delayBetweenSends > TimeSpan.Zero)
                 {
@@ -105,7 +115,7 @@ namespace TaskManager.Api.Services
                 try
                 {
                     await _emailSender.SendAsync(
-                        EmailTemplates.DueReminder(user.Email!, user.Username, digest, _appOptions.FrontendBaseUrl),
+                        EmailTemplates.DueReminder(user.Email!, user.Username, digest, _appOptions.FrontendBaseUrl, user.ReminderFrequency),
                         cancellationToken);
 
                     // Mark only after a successful send, so failures are retried next run
@@ -121,7 +131,7 @@ namespace TaskManager.Api.Services
             }
 
             _logger.LogInformation(
-                "Reminder run: {Eligible} eligible, {Sent} sent, {NothingDue} with nothing due, {Failed} failed",
+                "Reminder run: {Due} due, {Sent} sent, {NothingDue} with nothing due, {Failed} failed",
                 users.Count, sent, nothingDue, failed);
 
             return new ReminderRunResult(users.Count, sent, nothingDue, failed);

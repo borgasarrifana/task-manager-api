@@ -164,5 +164,36 @@ namespace TaskManager.Api.Tests.Services
             Assert.Empty(sender.Sent);
             Assert.Null((await context.Users.FindAsync(1))!.LastReminderSentOn);
         }
+
+                [Fact]
+        public async Task SendDueRemindersAsync_Fortnightly_IncludesTasksUntilNextDigest()
+        {
+            using var context = TestDbContextFactory.Create();
+            context.Users.Add(new User
+            {
+                Id = 1, Username = "alice", Email = "alice@example.com",
+                EmailConfirmed = true, EmailRemindersEnabled = true,
+                ReminderFrequency = ReminderFrequency.Fortnightly
+            });
+            context.Projects.Add(new Project
+            {
+                Id = 1, Name = "Launch", UserId = 1,
+                Tasks = new List<TaskItem>
+                {
+                    new() { Title = "In ten days", DueDate = Utc(10, 11) },
+                    new() { Title = "In twenty days", DueDate = Utc(10, 21) }
+                }
+            });
+            await context.SaveChangesAsync();
+            var sender = new FakeEmailSender();
+
+            await CreateService(context, sender).SendDueRemindersAsync();
+
+            var email = Assert.Single(sender.Sent);
+            Assert.Contains("COMING UP (1)", email.TextBody);
+            Assert.Contains("In ten days", email.TextBody);
+            Assert.DoesNotContain("In twenty days", email.TextBody);
+            Assert.Contains("Fortnightly Briefing", email.HtmlBody);
+        }
     }
 }

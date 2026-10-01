@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Text;
+using TaskManager.Api.Models;
 
 namespace TaskManager.Api.Services.Email
 {
@@ -80,14 +81,22 @@ namespace TaskManager.Api.Services.Email
             return new EmailMessage(to, "Verify your email · Task Manager", Frame(rows, assetBaseUrl), text);
         }
 
-        public static EmailMessage DueReminder(string to, string username, ReminderDigest digest, string appUrl)
+        public static EmailMessage DueReminder(
+            string to, string username, ReminderDigest digest, string appUrl, ReminderFrequency frequency)
         {
             var safeName = WebUtility.HtmlEncode(username);
             var headline = $"{digest.Total} {(digest.Total == 1 ? "task needs" : "tasks need")} attention";
+            var briefing = frequency switch
+            {
+                ReminderFrequency.Daily => "Daily Briefing",
+                ReminderFrequency.Fortnightly => "Fortnightly Briefing",
+                ReminderFrequency.Monthly => "Monthly Briefing",
+                _ => "Briefing"
+            };
 
             var rows = new StringBuilder($"""
                 <tr><td style="padding:4px 28px 8px;font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;color:#0a8fa8;text-transform:uppercase;">
-                  &#9679; Task Manager &middot; Daily Briefing
+                  &#9679; Task Manager &middot; {briefing}
                 </td></tr>
                 <tr><td style="padding:0 28px;font-family:Arial,sans-serif;font-size:22px;letter-spacing:3px;color:#00e5ff;text-transform:uppercase;">
                   {headline}
@@ -133,17 +142,18 @@ namespace TaskManager.Api.Services.Email
             Section("Overdue", "#ffb020", digest.Overdue);
             Section("Due today", "#00e5ff", digest.DueToday);
             Section("Due tomorrow", "#39ff88", digest.DueTomorrow);
+            Section("Coming up", "#0a8fa8", digest.Upcoming);
 
             rows.Append($"""
                 <tr><td style="padding:24px 28px 8px;">
                   {Button(appUrl, "Open Task Manager")}
                 </td></tr>
                 <tr><td style="padding:12px 28px 8px;font-family:'Courier New',monospace;font-size:11px;line-height:1.5;color:#0a8fa8;">
-                  You're receiving this because daily reminders are on. Turn them off on your Account page.
+                  You're receiving this because task reminders are on. Change how often, or turn them off, on your Account page.
                 </td></tr>
                 """);
 
-            text.Append($"\nOpen Task Manager: {appUrl}\nTurn off reminders on your Account page.");
+            text.Append($"\nOpen Task Manager: {appUrl}\nChange how often, or turn reminders off, on your Account page.");
 
             var subject = digest.Overdue.Count == digest.Total
                 ? $"{digest.Total} overdue {(digest.Total == 1 ? "task" : "tasks")}"

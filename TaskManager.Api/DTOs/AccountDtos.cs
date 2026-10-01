@@ -9,6 +9,8 @@ namespace TaskManager.Api.DTOs
         public string? Email { get; set; }
         public bool EmailConfirmed { get; set; }
         public bool EmailRemindersEnabled { get; set; }
+        public ReminderFrequency ReminderFrequency { get; set; }
+        public List<DayOfWeek> ReminderDays { get; set; } = new();
         public UserRole Role { get; set; }
     }
 
@@ -20,8 +22,13 @@ namespace TaskManager.Api.DTOs
         public string? Email { get; set; }
 
         public bool EmailRemindersEnabled { get; set; }
+
+        public ReminderFrequency ReminderFrequency { get; set; } = ReminderFrequency.Daily;
+
+        // Used when ReminderFrequency is Weekly
+        public List<DayOfWeek>? ReminderDays { get; set; }
     }
-    
+
     public class VerifyEmailDto
     {
         [Required]
