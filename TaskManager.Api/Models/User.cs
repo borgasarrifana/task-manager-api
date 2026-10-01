@@ -11,9 +11,13 @@ namespace TaskManager.Api.Models
         public string? Email { get; set; }
         public bool EmailConfirmed { get; set; }
         public bool EmailRemindersEnabled { get; set; }
-                // Pending email verification (only the SHA-256 hash of the token is stored)
+
+        // Pending email verification (only the SHA-256 hash of the token is stored)
         public string? EmailVerificationTokenHash { get; set; }
         public DateTime? EmailVerificationExpiresAt { get; set; }
         public DateTime? EmailVerificationSentAt { get; set; }
+
+        // UTC date of the last reminder digest sent (makes the daily job idempotent)
+        public DateOnly? LastReminderSentOn { get; set; }
     }
 }

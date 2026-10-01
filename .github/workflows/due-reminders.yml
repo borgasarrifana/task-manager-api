@@ -1,0 +1,28 @@
+name: Daily due-task reminders
+
+on:
+  schedule:
+    - cron: "30 6 * * *"   # 06:30 UTC daily (07:30 in Portugal/UK during summer time)
+  workflow_dispatch:         # "Run workflow" button for manual runs
+
+jobs:
+  send-reminders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      API_BASE_URL: ${{ secrets.API_BASE_URL }}
+      JOBS_KEY: ${{ secrets.JOBS_KEY }}
+    steps:
+      - name: Wake the API (Render free tier sleeps when idle)
+        run: |
+          curl --silent --output /dev/null --max-time 120 \
+            --retry 3 --retry-delay 15 --retry-all-errors \
+            "$API_BASE_URL/openapi/v1.json"
+
+      - name: Send reminder digests
+        # Retries are safe: the endpoint is idempotent per user per day
+        run: |
+          curl --fail-with-body --silent --show-error --max-time 120 \
+            --retry 3 --retry-delay 20 --retry-all-errors \
+            -X POST "$API_BASE_URL/api/jobs/due-reminders" \
+            -H "X-Job-Key: $JOBS_KEY"

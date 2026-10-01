@@ -1,14 +1,14 @@
 using TaskManager.Api.Data;
 using Microsoft.EntityFrameworkCore;
+using TaskManager.Api.Common;
 using TaskManager.Api.Services;
+using TaskManager.Api.Services.Email;
 using TaskManager.Api.Hubs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.HttpOverrides;
 using Serilog;
-using TaskManager.Api.Common;
-using TaskManager.Api.Services.Email;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
@@ -33,7 +33,7 @@ builder.Host.UseSerilog((context, services, configuration) =>
         .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 14);
 });
 
-// Add services to the container.
+// --- Authentication ---
 var jwtKey = builder.Configuration["Jwt:Key"]!;
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
@@ -78,14 +78,19 @@ builder.Services.AddControllers()
     });
 builder.Services.AddSignalR();
 builder.Services.AddOpenApi();
+
+// --- Core services ---
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IRealtimeNotifier, RealtimeNotifier>();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 // --- Email ---
 builder.Services.Configure<AppOptions>(builder.Configuration.GetSection("App"));
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
+builder.Services.Configure<JobOptions>(builder.Configuration.GetSection("Jobs"));
 
 var emailProvider = builder.Configuration["Email:Provider"] ?? "Log";
 if (emailProvider.Equals("Resend", StringComparison.OrdinalIgnoreCase))
@@ -101,7 +106,9 @@ else
     builder.Services.AddSingleton<IEmailSender, LoggingEmailSender>();
 }
 builder.Services.AddScoped<IEmailVerificationService, EmailVerificationService>();
-builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddScoped<IReminderDigestService, ReminderDigestService>();
+
+// --- CORS ---
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -116,6 +123,11 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+if (app.Environment.IsProduction() && !emailProvider.Equals("Resend", StringComparison.OrdinalIgnoreCase))
+{
+    Log.Warning("Email provider is '{Provider}' in Production — emails will be logged, not sent", emailProvider);
+}
 
 app.UseSerilogRequestLogging(options =>
 {
